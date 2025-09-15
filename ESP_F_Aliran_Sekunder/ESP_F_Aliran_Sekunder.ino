@@ -1,4 +1,3 @@
-#include <Arduino.h>
 
 // Pre-compiler check to ensure the correct board is selected
 #if !defined(ESP32)
@@ -9,11 +8,11 @@
 // PENGATURAN HARDWARE & ANIMASI
 // ======================================================================
 
-// 1. PIN UNTUK KOMUNIKASI UART (Menerima dari ESP-F)
+// 1. PIN UNTUK KOMUNIKASI UART DENGAN ESP-A (atau dari ESP-E jika di-daisy-chain)
 #define UART2_RX_PIN 17
 #define UART2_TX_PIN 16
 
-// 2. PIN GPIO UNTUK 16 LED ANDA (Asumsi rangkaian sama dengan E & F)
+// 2. PIN GPIO UNTUK 16 LED ANDA (Asumsi rangkaian sama dengan ESP-E)
 const int ledPins[16] = {
   13, 12, 14, 27, // Blok 1
   26, 25, 33, 32, // Blok 2
@@ -42,7 +41,7 @@ enum PumpStatus {
   PUMP_SHUTTING_DOWN = 3
 };
 
-// Variabel ini sekarang menyimpan status pompa tersier
+// PERUBAHAN: Variabel ini sekarang menyimpan status pompa yang relevan untuk ESP-F
 volatile PumpStatus activePumpStatus = PUMP_OFF;
 
 String uartBuffer = "";
@@ -60,7 +59,6 @@ void parseData(String data) {
   int lastIndex = 0;
   int separatorIndex = 0;
   
-  // PERUBAHAN UTAMA: Sekarang kita harus mencari sampai ke "pump3"
   while ((separatorIndex = data.indexOf(';', lastIndex)) != -1) {
     String pair = data.substring(lastIndex, separatorIndex);
     int colonIndex = pair.indexOf(':');
@@ -68,24 +66,15 @@ void parseData(String data) {
       String key = pair.substring(0, colonIndex);
       String value = pair.substring(colonIndex + 1);
       
-      if (key == "pump3") {
+      // PERUBAHAN UTAMA: Sekarang mencari "pump2" bukan "pump1"
+      if (key == "pump2") {
         activePumpStatus = (PumpStatus)value.toInt();
+        // Hentikan parsing karena kita sudah dapat data yang dibutuhkan
         return; 
       }
     }
     lastIndex = separatorIndex + 1;
   }
-
-  // Juga periksa bagian terakhir dari string, karena mungkin tidak diakhiri dengan ';'
-  String lastPair = data.substring(lastIndex);
-  int colonIndex = lastPair.indexOf(':');
-    if (colonIndex != -1) {
-      String key = lastPair.substring(0, colonIndex);
-      String value = lastPair.substring(colonIndex + 1);
-      if (key == "pump3") {
-        activePumpStatus = (PumpStatus)value.toInt();
-      }
-    }
 }
 
 // --- FUNGSI KONTROL LED ---
@@ -99,7 +88,7 @@ void drawLedBlockToBuffer(int startPos, uint8_t* buffer) {
 // --- FUNGSI UTAMA ---
 void setup() {
   Serial.begin(115200);
-  Serial.println("ESP-G (Visualizer Aliran Tersier) Ready. Waiting for data...");
+  Serial.println("ESP-F (Visualizer Aliran Sekunder) Ready. Waiting for data...");
 
   Serial2.begin(115200, SERIAL_8N1, UART2_RX_PIN, UART2_TX_PIN);
 
@@ -114,7 +103,8 @@ void setup() {
 void loop() {
   // 1. Cek dan baca data dari UART
   if (Serial2.available() > 0) {
-    uartBuffer = Serial2.readStringUntil('\n');
+    uartBuffer = Serial2.readStringUntil('
+');
     newDataAvailable = true;
   }
 
@@ -127,7 +117,8 @@ void loop() {
     newDataAvailable = false;
   }
 
-  // 3. Tentukan kecepatan animasi berdasarkan status pompa tersier
+  // 3. Tentukan kecepatan animasi berdasarkan status pompa yang relevan (sekarang pompa 2)
+  // PERUBAHAN: Switch ini sekarang menggunakan `activePumpStatus`
   switch (activePumpStatus) {
     case PUMP_OFF:
       if (masterPosition != -1) { 

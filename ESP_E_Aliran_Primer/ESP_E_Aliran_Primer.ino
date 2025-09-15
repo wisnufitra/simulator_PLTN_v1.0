@@ -1,4 +1,3 @@
-#include <Arduino.h>
 
 // Pre-compiler check to ensure the correct board is selected
 #if !defined(ESP32)
@@ -119,7 +118,8 @@ void setup() {
 void loop() {
   // 1. Cek dan baca data dari UART
   if (Serial2.available() > 0) {
-    uartBuffer = Serial2.readStringUntil('\n');
+    uartBuffer = Serial2.readStringUntil('
+');
     newDataAvailable = true;
   }
 
